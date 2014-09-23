@@ -1,6 +1,6 @@
 
 #include "broadcast.h"
-#include <pthread.h>
+#include <stdlib.h>
 #include <semaphore.h>
 
 #define TAM 10
@@ -13,11 +13,15 @@ int proximaEscrita;
 
 int quantosLeram[TAM]; /* indica quantas threads leram uma posição */
 
+int totalReceptores = 0 ;
+
 /* variáveis por thread: */
 
-int corrente = 0; /* posição de leitura de cada thread destinatário */
 
-int item; 
+
+int * correntes ; /* posição de leitura de cada thread destinatário */
+
+
 
 sem_t cons;
 sem_t prod;
@@ -29,30 +33,38 @@ void incrementaCircular(int *);
 
 int inicia (int transmissores, int receptores)
 {
+	correntes = (int*) malloc(sizeof(int)*receptores);
+	if (correntes == NULL)
+		return 0;
+
+	totalReceptores = receptores;
+	
 	sem_init(&cons, 0, 0);
 	sem_init(&prod,0,0);
 	sem_init(&e,0,1);
+	
 	db = dp = 0;
+	
 	return 1;
 }
 
 void envia (int val)
 {
 	sem_wait(&e);
-	if ( proximaEscrita == corrente )
+	if ( quantosLeram[proximaEscrita] == totalReceptores )
 	{
 		dp++;
 		sem_post(&e);
 		sem_wait(&prod);
 	}
-	buffer[corrente] = val;
+	buffer[proximaEscrita] = val;
 
 	//SIGNAL
-	if (dp > 0 && corrente < proximaEscrita )
+	if (dp > 0 )
 	{
 		dp--;
 		sem_post(&prod);
-	}else if (db > 0 && corrente > 0 )
+	}else if (db > 0 )
 	{
 		db--;
 		sem_post(&cons);
@@ -63,6 +75,8 @@ void envia (int val)
 
 int recebe (int meu_id)
 {
+	int corrente = correntes[meu_id];
+	int item; 
 	//P(e)
 	sem_wait(&e);
 	/* <await (proxEscrita > corrente) >*/
@@ -76,6 +90,7 @@ int recebe (int meu_id)
 	item = buffer[corrente];
 
 	incrementaCircular(&corrente);
+	correntes[meu_id] = corrente;
 
 		//SIGNAL
 	if (dp > 0 && corrente < proximaEscrita )
@@ -88,6 +103,10 @@ int recebe (int meu_id)
 		sem_post(&cons);
 	}else
 		sem_post(&e);
+
+
+	quantosLeram[corrente-1]++;
+
 	return 1;
 }
 

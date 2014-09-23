@@ -23,7 +23,7 @@ int main()
 {
 	int val;
 	printf("antes inicia\n");
-	inicia(0,0);
+	inicia(1,1);
 
 
 	pthread_t inc_x_thread;
@@ -31,7 +31,7 @@ int main()
 	/* create a second thread which executes inc_x(&x) */
 	if(pthread_create(&inc_x_thread, NULL, w2, &val )) {
 
-		fprintf(stderr, "Error creating thread\n");
+		printf("Error creating thread\n");
 		return 1;
 	}
 
