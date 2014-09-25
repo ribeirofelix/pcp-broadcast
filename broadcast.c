@@ -37,6 +37,7 @@ void incrementaCircular(int *);
 int inicia (int transmissores, int receptores)
 {
 	int i ;
+	printf("vai\n");
 	correntes = (int*) malloc(sizeof(int)*receptores);
 	if (correntes == NULL)
 		return 0;
@@ -65,15 +66,15 @@ int inicia (int transmissores, int receptores)
 void envia (int val)
 {
 	/* <await (B)S; > */
-	/* B =  quantosLeram[proximaEscrita] < totalReceptores       */
-	/* S = deposita item 																  */
-	/* <await (deposita[proximaEscrita] < totalReceptores ) >*/
+	/* B =  quantosLeram[proximaEscrita] == totalReceptores       */
+	/* S = deposita item 										 */
+	/* <await (deposita[proximaEscrita] == totalReceptores ) >    */
 
 	//P(e)
 	sem_wait(&e);
 	
 	// if (!B)
-	if ( quantosLeram[proximaEscrita] >= totalReceptores )
+	if (  ! quantosLeram[proximaEscrita] == totalReceptores )
 	{
 		//dp++
 		dp++;
@@ -93,13 +94,14 @@ void envia (int val)
 	printf("depois coloca\n");
 
 	//SIGNAL
-	if (dp > 0 && quantosLeram[proximaEscrita] < totalReceptores ) 
+	if (dp > 0 && quantosLeram[proximaEscrita]  == totalReceptores ) 
 	{
 		dp--;
 		printf("post prod\n");
 		sem_post(&prod);
-	}else if ( receptoresEsperando[proximaEscrita] > 0 && quantosLeram[proximaEscrita] != totalReceptores  )
+	}else if ( receptoresEsperando[proximaEscrita] > 0 )
 	{
+		printf(" post cons[corrrente] \n");
 		receptoresEsperando[proximaEscrita]--;
 		sem_post(&cons[proximaEscrita]);
 	}else
@@ -122,7 +124,7 @@ int recebe (int meu_id)
 	printf("saiu e\n");
 	
 	// if (!B)
-	if ( proximaEscrita == corrente && quantosLeram[corrente] == totalReceptores )
+	if ( ! (proximaEscrita > corrente && quantosLeram[corrente] != totalReceptores) )
 	{
 		//db ++
 		receptoresEsperando[corrente]++;
@@ -134,8 +136,10 @@ int recebe (int meu_id)
 		printf("wait cons\n");
 	}
 
-		//S:
-	printf("critica %d \n", buffer[corrente]);
+
+	//S:
+	printf("critica %d , id %d \n", buffer[corrente] , meu_id);
+
 	item = buffer[corrente];
 	printf("%d\n",item );	
 	correntes[meu_id] = (corrente + 1) % TAM;
@@ -157,6 +161,8 @@ int recebe (int meu_id)
 		sem_post(&e);
 
 
+	
+	
 
 	// <quantosLeram[corrente]++>
 	printf("oi1?\n");
@@ -166,16 +172,17 @@ int recebe (int meu_id)
 	quantosLeram[corrente]++;
 
 	//SIGNAL
-	if (totalTransmissores == 0 && proximaEscrita == corrente && quantosLeram[corrente] == totalReceptores && dp > 0  )
+	if (dp > 0 && totalTransmissores == 0 && proximaEscrita == corrente && quantosLeram[corrente] == totalReceptores )
 	{
 		dp--;
 		sem_post(&prod);
-	}else if ( receptoresEsperando[corrente] > 0 )
-	{
-		receptoresEsperando[corrente] --;
-		sem_post(&cons[corrente]);
-		/* code */
 	}
+	//else if ( receptoresEsperando[corrente] > 0 )
+	// {
+	// 	receptoresEsperando[corrente] --;
+	// 	sem_post(&cons[corrente]);
+	// 	/* code */
+	// }
 	else
 		sem_post(&e);
 

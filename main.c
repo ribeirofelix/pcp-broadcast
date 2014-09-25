@@ -1,59 +1,85 @@
 #include "broadcast.h"
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-void *w1()
+#define QTD_REPECTORAS 2
+#define QTD_TRANSMISSORAS 2
+
+pthread_t t_receptoras[QTD_REPECTORAS];
+pthread_t t_transmissoras[QTD_TRANSMISSORAS];
+void *respostas[QTD_REPECTORAS];
+
+void *transmitir(void *val)
 {
-	
-	printf("antes envia\n");
-	envia(3);
+	int * val_ptr ;
+	int v ;
+	printf("comecou transmitir\n");
+
+	val_ptr  = (int*)val;
+	v = (*val_ptr) +1;
+	printf("antes envia:%d \n",v);
+	envia( v );
 	return NULL;
 }
 
-void * w2(void *x_void_ptr)
+void * receber(void *id_ptr)
 {
-	int * val_ptr = (int*)x_void_ptr;
-	int item ;
+	int id = *((int*)id_ptr);
+	int * item = (int*) malloc(sizeof(int));
 	printf("antes recebe\n");
-	item = recebe(0);
-	printf("pos recebe: %d \n",  item);
+	*item = recebe(id);
+	printf("pos recebe: %d \n",  *item);
 
-	return NULL;
+	return item;
 }
+
 
 int main()
 {
-	int val = 0;
-	int val1 = 1;
 
+	int i ;
 	printf("antes inicia\n");
-	inicia(1,1);
-
-
-	pthread_t inc_x_thread;
-	pthread_t inc_y_thread;
-
+	inicia(QTD_TRANSMISSORAS,QTD_REPECTORAS);
 	
+	printf("lanca_receptoras\n");
+		for (i = 0; i < QTD_REPECTORAS ; ++i)
+	{
 
-	
-	/* create a second thread which executes inc_x(&x) */
-	if(pthread_create(&inc_x_thread, NULL, w2, &val )) {
+		if(pthread_create(& (t_receptoras[i]), NULL, receber, &i )) {
 
-		printf("Error creating thread\n");
-		return 1;
+			printf("Error creating thread\n");
+			return ;
+		}
 	}
-	w1();
+
+
+	printf("lanca_transmissoras\n");
+	for (i = 0; i < QTD_TRANSMISSORAS; ++i)
+	{
+		printf("loop\n");
+		if(pthread_create(& (t_transmissoras[i]), NULL, transmitir, &i )) {
+
+			printf("Error creating thread\n");
+			return ;
+		}
+	}
 	
-	// /* create a second thread which executes inc_x(&x) */
-	// if(pthread_create(&inc_y_thread, NULL, w2, &val1 )) {
+	for (i = 0; i < QTD_TRANSMISSORAS; ++i)
+	{
+		pthread_join(  (t_transmissoras[i]), NULL );
+	}
 
-	// 	printf("Error creating thread\n");
-	// 	return 1;
-	// }
-	
+	for (i = 0; i < QTD_REPECTORAS; ++i)
+	{
+		pthread_join(  (t_receptoras[i]), &respostas[i] );
+	}
 
-
-
+	printf("respostas:\n");
+	for (i = 0; i < QTD_REPECTORAS; ++i)
+	{
+		printf("%d\n", *((int*)respostas[i]) );
+	}
 	
 	return 0;
 }
