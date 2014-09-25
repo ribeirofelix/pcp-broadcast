@@ -14,12 +14,10 @@ int proximaEscrita = 0;
 
 int quantosLeram[TAM]; /* indica quantas threads leram uma posição */
 int receptoresEsperando[TAM];
+int *marcadorLeitura[TAM];
 
 int totalReceptores = 0 ;
 int totalTransmissores = 0 ;
-
-/* variáveis por thread: */
-
 
 
 int * correntes ; /* posição de leitura de cada thread destinatário */
@@ -50,6 +48,7 @@ int inicia (int transmissores, int receptores)
 		buffer[i] = 0;
 		quantosLeram[i] = 0 ;
 		receptoresEsperando[i] = 0;
+		marcadorLeitura[i] = (int*) malloc(sizeof(int)*receptores);
 		sem_init(&cons[i],0,0);
 	}
 
@@ -65,6 +64,7 @@ int inicia (int transmissores, int receptores)
 
 void envia (int val)
 {
+	int i;
 	/* <await (B)S; > */
 	/* B =  quantosLeram[proximaEscrita] == totalReceptores       */
 	/* S = deposita item 										 */
@@ -90,11 +90,17 @@ void envia (int val)
 
 	//S
 	buffer[proximaEscrita] = val;
+	proximaEscrita++;
+
+	for (i = 0; i < totalReceptores; ++i)
+	{
+		marcadorLeitura[proximaEscrita-1][i] = 0;
+	}
 
 	printf("depois coloca\n");
 
 	//SIGNAL
-	if (dp > 0 && quantosLeram[proximaEscrita]  == totalReceptores ) 
+	if (dp > 0 && quantosLeram[proximaEscrita-1]  == totalReceptores ) 
 	{
 		dp--;
 		printf("post prod\n");
@@ -124,7 +130,7 @@ int recebe (int meu_id)
 	printf("saiu e\n");
 	
 	// if (!B)
-	if ( ! (proximaEscrita > corrente && quantosLeram[corrente] != totalReceptores) )
+	if ( marcadorLeitura[corrente][meu_id] )
 	{
 		//db ++
 		receptoresEsperando[corrente]++;
@@ -142,12 +148,13 @@ int recebe (int meu_id)
 
 	item = buffer[corrente];
 	printf("%d\n",item );	
-	correntes[meu_id] = (corrente + 1) % TAM;
 	
+	correntes[meu_id] = (corrente + 1) % TAM;
+	marcadorLeitura[corrente][meu_id] = 1;
 	
 
 	//SIGNAL
-	if (receptoresEsperando[corrente] > 0 )
+	if (receptoresEsperando[corrente] > 0 && !marcadorLeitura[corrente][meu_id] )
 	{
 		receptoresEsperando[corrente]--;
 		sem_post(&cons[corrente]);
@@ -172,17 +179,17 @@ int recebe (int meu_id)
 	quantosLeram[corrente]++;
 
 	//SIGNAL
-	if (dp > 0 && totalTransmissores == 0 && proximaEscrita == corrente && quantosLeram[corrente] == totalReceptores )
+	if (dp > 0  && proximaEscrita == corrente && quantosLeram[corrente] == totalReceptores )
 	{
 		dp--;
 		sem_post(&prod);
 	}
-	//else if ( receptoresEsperando[corrente] > 0 )
-	// {
-	// 	receptoresEsperando[corrente] --;
-	// 	sem_post(&cons[corrente]);
-	// 	/* code */
-	// }
+	else if ( receptoresEsperando[corrente] > 0 )
+	{
+		receptoresEsperando[corrente] --;
+		sem_post(&cons[corrente]);
+		/* code */
+	}
 	else
 		sem_post(&e);
 
